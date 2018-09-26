@@ -29,11 +29,11 @@ if (!function_exists('includeRealurlConfiguration')) {
 		$realurlConfigurationFile = trim($configuration['configFile']);
 		if ($realurlConfigurationFile && @file_exists(PATH_site . $realurlConfigurationFile)) {
 			/** @noinspection PhpIncludeInspection */
-			require_once(PATH_site . $realurlConfigurationFile);
+			\TYPO3\CMS\Core\Utility\GeneralUtility::requireOnce(PATH_site . $realurlConfigurationFile);
 		}
 		elseif ($configuration['enableAutoConf'] && file_exists(PATH_site . TX_REALURL_AUTOCONF_FILE)) {
 			/** @noinspection PhpIncludeInspection */
-			require_once(PATH_site . TX_REALURL_AUTOCONF_FILE);
+			\TYPO3\CMS\Core\Utility\GeneralUtility::requireOnce(PATH_site . TX_REALURL_AUTOCONF_FILE);
 		}
 
 		if (is_array($existingConfiguration)) {
@@ -57,32 +57,57 @@ $GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_tcemain.php']['proc
 
 $GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['realurl']['cacheImplementation'] = 'DmitryDulepov\\Realurl\\Cache\\DatabaseCache';
 
-$GLOBALS['TYPO3_CONF_VARS']['FE']['addRootLineFields'] .= ($GLOBALS['TYPO3_CONF_VARS']['FE']['addRootLineFields'] ? ',' : '') . 'tx_realurl_pathsegment,tx_realurl_exclude,tx_realurl_pathoverride';
-$GLOBALS['TYPO3_CONF_VARS']['FE']['pageOverlayFields'] .= ($GLOBALS['TYPO3_CONF_VARS']['FE']['pageOverlayFields'] ? ',' : '' ) . 'tx_realurl_pathsegment';
+if (!empty($GLOBALS['TYPO3_CONF_VARS']['FE']['addRootLineFields'])) {
+	$GLOBALS['TYPO3_CONF_VARS']['FE']['addRootLineFields'] .= ',';
+}
+$GLOBALS['TYPO3_CONF_VARS']['FE']['addRootLineFields'] .= 'tx_realurl_pathsegment,tx_realurl_exclude,tx_realurl_pathoverride';
+
+if (isset($GLOBALS['TYPO3_CONF_VARS']['FE']['pageOverlayFields'])) {
+	if (!empty($GLOBALS['TYPO3_CONF_VARS']['FE']['pageOverlayFields'])) {
+		$GLOBALS['TYPO3_CONF_VARS']['FE']['pageOverlayFields'] .= ',';
+	}
+	$GLOBALS['TYPO3_CONF_VARS']['FE']['pageOverlayFields'] .= 'tx_realurl_pathsegment';
+}
 
 $GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['tce']['formevals']['DmitryDulepov\\Realurl\\Evaluator\\SegmentFieldCleaner'] = \TYPO3\CMS\Core\Utility\ExtensionManagementUtility::extPath('realurl', 'Classes/Evaluator/SegmentFieldCleaner.php');
 
 \TYPO3\CMS\Core\Utility\ExtensionManagementUtility::addPageTSConfig('<INCLUDE_TYPOSCRIPT: source="FILE:EXT:realurl/Configuration/TSConfig.txt">');
 
 // Scheduler clean up of expired tables
-if (!is_array($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['scheduler']['tasks']['TYPO3\\CMS\\Scheduler\\Task\\TableGarbageCollectionTask']['options']['tables']['tx_realurl_urldata'])) {
+if (empty($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['scheduler']['tasks']['TYPO3\\CMS\\Scheduler\\Task\\TableGarbageCollectionTask']['options']['tables']['tx_realurl_urldata'])) {
     $GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['scheduler']['tasks']['TYPO3\\CMS\\Scheduler\\Task\\TableGarbageCollectionTask']['options']['tables']['tx_realurl_urldata'] = array(
         'expireField' => 'expire',
     );
 }
-if (!is_array($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['scheduler']['tasks']['TYPO3\\CMS\\Scheduler\\Task\\TableGarbageCollectionTask']['options']['tables']['tx_realurl_pathdata'])) {
+if (empty($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['scheduler']['tasks']['TYPO3\\CMS\\Scheduler\\Task\\TableGarbageCollectionTask']['options']['tables']['tx_realurl_pathdata'])) {
     $GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['scheduler']['tasks']['TYPO3\\CMS\\Scheduler\\Task\\TableGarbageCollectionTask']['options']['tables']['tx_realurl_pathdata'] = array(
         'expireField' => 'expire',
     );
 }
-if (!is_array($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['scheduler']['tasks']['TYPO3\\CMS\\Scheduler\\Task\\TableGarbageCollectionTask']['options']['tables']['tx_realurl_uniqalias'])) {
+if (empty($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['scheduler']['tasks']['TYPO3\\CMS\\Scheduler\\Task\\TableGarbageCollectionTask']['options']['tables']['tx_realurl_uniqalias'])) {
     $GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['scheduler']['tasks']['TYPO3\\CMS\\Scheduler\\Task\\TableGarbageCollectionTask']['options']['tables']['tx_realurl_uniqalias'] = array(
         'expireField' => 'expire',
     );
 }
 
 // Exclude gclid from cHash because TYPO3 does not do that
+if (!is_array($GLOBALS['TYPO3_CONF_VARS']['FE']['cacheHash']['excludedParameters'])) {
+    $GLOBALS['TYPO3_CONF_VARS']['FE']['cacheHash']['excludedParameters'] = array();
+}
 if (!in_array('gclid', $GLOBALS['TYPO3_CONF_VARS']['FE']['cacheHash']['excludedParameters'])) {
     $GLOBALS['TYPO3_CONF_VARS']['FE']['cacheHash']['excludedParameters'][] = 'gclid';
+    if (!isset($GLOBALS['TYPO3_CONF_VARS']['FE']['cHashExcludedParameters'])) {
+        $GLOBALS['TYPO3_CONF_VARS']['FE']['cHashExcludedParameters'] = '';
+    }
     $GLOBALS['TYPO3_CONF_VARS']['FE']['cHashExcludedParameters'] .= ', gclid';
 }
+
+// Turn logging off by default
+$GLOBALS['TYPO3_CONF_VARS']['LOG']['DmitryDulepov']['Realurl'] = array(
+	'writerConfiguration' => array(
+		\TYPO3\CMS\Core\Log\LogLevel::DEBUG => array(
+			'TYPO3\\CMS\\Core\\Log\Writer\\NullWriter' => array(
+			)
+		)
+	)
+);
